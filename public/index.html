@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat APP</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <h1>Chatting-App</h1>
+
+    <div id="messages"></div>
+
+    <div class="input-container">
+      <input type="text" id="message" placeholder="Type a message..." />
+      <button id="sendBtn">Send</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      const sendBtn = document.getElementById("sendBtn");
+      const messageInput = document.getElementById("message");
+      const allMessages = document.getElementById("messages");
+
+      // Generate a simple client ID for distinguishing users
+      const clientId = Math.random().toString(36).substring(2, 15);
+
+      socket.on("message", ({ text, senderId, timestamp }) => {
+        console.log("Received message:", { text, senderId, timestamp }); // Debug log
+        const p = document.createElement("p");
+        p.className = senderId === clientId ? "sent" : "received";
+        const messageText = document.createElement("span");
+        messageText.innerText = text || "No message content";
+
+        const timestampSpan = document.createElement("span");
+        timestampSpan.className = "timestamp";
+
+        // Safely parse timestamp
+        let displayTime;
+        try {
+          if (timestamp) {
+            const date = new Date(timestamp);
+            if (isNaN(date.getTime())) {
+              console.warn("Invalid timestamp received:", timestamp);
+              displayTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else {
+              displayTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+          } else {
+            console.warn("No timestamp provided, using client time");
+            displayTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          }
+        } catch (error) {
+          console.error("Error parsing timestamp:", error, "Timestamp:", timestamp);
+          displayTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        timestampSpan.innerText = displayTime;
+        p.appendChild(messageText);
+        p.appendChild(timestampSpan);
+        allMessages.appendChild(p);
+        allMessages.scrollTop = allMessages.scrollHeight; // Auto-scroll to bottom
+      });
+
+      sendBtn.addEventListener("click", () => {
+        const message = messageInput.value.trim();
+        if (message) {
+          socket.emit("user-message", { text: message, senderId: clientId });
+          messageInput.value = ""; // Clear input after sending
+        }
+      });
+
+      // Allow sending message with Enter key
+      messageInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          sendBtn.click();
+        }
+      });
+    </script>
+  </body>
+</html>
